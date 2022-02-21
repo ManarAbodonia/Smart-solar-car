@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title> SMART CAR - CONTROL</title>
+<link rel="stylesheet" href="fontawesome.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+    body {
+        font-family: 'Inconsolata', monospace;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .btn {
+        width: 80px;
+        height: 70px;
+        color: aliceblue;
+        margin: 4px;
+        border: 0px;
+        font-size: larger;
+        border-radius: 20px;
+    }
+
+    .btn:hover {
+        background-color: rgba(34, 30, 29, 0.616);
+    }
+
+    .btnled {
+        background-color: rgba(113, 238, 175, 0.76);
+        width: 80px;
+        color: black;
+        margin: 2px;
+    }
+
+    .btndown,
+    .btnup,
+    .btnleft,
+    .btnright,
+    .btnbuz {
+        background-color: rgba(63, 36, 107, 0.609);
+    }
+
+    .radioBtn {
+        font-size: 30px;
+        text-align: center;
+    }
+
+    .btnStart {
+        background-color: rgba(25, 243, 18, 0.835);
+    }
+
+    .btnTrucker {
+        background-color: blueviolet;
+    }
+
+    #btnDirect,
+    #btnTruck {
+        display: none;
+    }
+
+    .btnStop {
+        background-color: rgba(241, 11, 11, 0.924);
+    }
+</style>
+<script language="javascript" type="text/javascript">
+
+    var url = "ws://192.168.4.1:1337/";
+    var output;
+    var btnLed, btnright, btnleft, btnbuz, btnup, btndown, btnStart, btnStop;
+    var canvas;
+    var context;
+
+    // This is called when the page finishes loading
+    function init() {
+
+        // Assign page elements to variables
+        btnLed = document.getElementById("toggleButton");
+        btnright = document.getElementById("btnRight");
+        btnleft = document.getElementById("btnLeft");
+        btnup = document.getElementById("btnUp");
+        btndown = document.getElementById("btnDown");
+        btnStart = document.getElementById("btnStart");
+        btnStop = document.getElementById("btnStop");
+        btnbuz = document.getElementById("btnBuz");
+        output = document.getElementById("output");
+        canvas = document.getElementById("led");
+        chType = 0;
+        // Draw circle in canvas
+        context = canvas.getContext("2d");
+        context.arc(25, 25, 15, 0, Math.PI * 2, false);
+        context.lineWidth = 3;
+        context.strokeStyle = "black";
+        context.stroke();
+        context.fillStyle = "black";
+        context.fill();
+
+        // Connect to WebSocket server
+        wsConnect(url);
+    }
+
+    // Call this to connect to the WebSocket server
+    function wsConnect(url) {
+
+        // Connect to WebSocket server
+        websocket = new WebSocket(url);
+
+        // Assign callbacks
+        websocket.onopen = function (evt) { onOpen(evt) };
+        websocket.onclose = function (evt) { onClose(evt) };
+        websocket.onmessage = function (evt) { onMessage(evt) };
+        websocket.onerror = function (evt) { onError(evt) };
+    }
+
+    // Called when a WebSocket connection is established with the server
+    function onOpen(evt) {
+
+        // Log connection state
+        console.log("Connected");
+
+        // Enable button
+        btnLed.disabled = false;
+        btnright.disabled = false;
+        btnleft.disabled = false;
+        btnup.disabled = false;
+        btndown.disabled = false;
+        btnbuz.disabled = false;
+        btnStart.disabled = false;
+        btnStop.disabled = false;
+
+        // Get the current state of the LED
+        doSend("getLEDState");
+    }
+
+    // Called when the WebSocket connection is closed
+    function onClose(evt) {
+
+        // Log disconnection state
+        console.log("Disconnected");
+
+        // Disable button
+        btnLed.disabled = true;
+        btnright.disabled = true;
+        btnleft.disabled = true;
+        btnup.disabled = true;
+        btndown.disabled = true;
+        btnbuz.disabled = true;
+        btnStart.disabled = true;
+        btnStop.disabled = true;
+        // Try to reconnect after a few seconds
+        setTimeout(function () { wsConnect(url) }, 2000);
+    }
+
+    // Called when a message is received from the server
+    function onMessage(evt) {
+
+        // Print out our received message
+        console.log("Received: " + evt.data);
+
+        // Update circle graphic with LED state
+        switch (evt.data) {
+            case "0":
+                console.log("LED is off");
+                context.fillStyle = "black";
+                context.fill();
+                break;
+            case "1":
+                console.log("LED is on");
+                context.fillStyle = "red";
+                context.fill();
+                break;
+            default:
+                break;
+        }
+    }
+
+    // Called when a WebSocket error occurs
+    function onError(evt) {
+        console.log("ERROR: " + evt.data);
+    }
+
+    // Sends a message to the server (and prints it to the console)
+    function doSend(message) {
+        console.log("Sending: " + message);
+        websocket.send(message);
+    }
+
+    // Called whenever the HTML button is pressed
+    function onPress(msg, msg2) {
+        //chooseType();
+        if (msg == "L") {
+            doSend("toggleLED");
+            doSend("getLEDState");
+        }
+        else if (msg == "S") {
+            if (chType == 2) {
+                document.getElementById('btnTruck').style.display = "none";
+
+                document.getElementById('btnDirect').style.display = "block";
+                doSend("direction");
+                if (msg2 == "R") {
+                    doSend("right");
+                }
+                else if (msg2 == "F") {
+                    doSend("left");
+                }
+                else if (msg2 == "B") {
+                    doSend("buzzer");
+                }
+                else if (msg2 == "U") {
+                    doSend("up");
+                }
+                else if (msg2 == "D") {
+                    doSend("down");
+                }
+            }
+            else if (chType == 1) {
+                document.getElementById('btnDirect').style.display = "none";
+
+                doSend("truck");
+                document.getElementById('btnTruck').style.display = "block";
+            }
+            if (msg2 == "P") {
+                document.getElementById('btnTruck').style.display = "none";
+
+                doSend("stop");
+            }
+        }
+
+    }
+    function tr(){
+        doSend("trucker");
+
+    }
+    function chooseType(num) {
+        if (num == 1) {
+            chType = 1;
+        }
+        else if (num == 2) {
+            chType = 2;
+        }
+
+    }
+    // Call the init function as soon as the page loads
+    window.addEventListener("load", init, false);
+
+</script>
+<div id="Car">
+    <h1> SMART CAR - CONTROL </h1>
+    <div>
+        <h3> Car Led Control: </h3>
+        <button id="toggleButton" onclick="onPress('L','0')" class="btn btnled">LED</button>
+        <br>
+        <canvas id="led" width="50" height="50"></canvas>
+
+    </div>
+    <hr>
+    <h3> Trucker Motion: </h3>
+    <button type="" id="Trucker" onclick="tr()" class="btn btnTrucker">Trucker</button>
+    
+    <hr>
+    <div>
+        <h2>Types of Motion:</h2>
+        <div class="radios">
+            <input type="radio" id="track" name="types" value="track" onclick="chooseType(1)">
+            <label for="track" class="radioBtn">On Track.</label><br>
+            <input type="radio" id="direction" name="types" value="direction" onclick="chooseType(2)">
+            <label for="direction" class="radioBtn">By Directions.</label><br>
+            <button id="btnStart" onclick="onPress('S','0')" class="btn btnStart" onclick="Start()">Start</button>
+        </div>
+        <div id="btnDirect">
+            <h3 style="font-size:30px"> Car Motion Control: </h3>
+            <button id="btnUp" onclick="onPress('S','U')" class="btn btnup">U</button><br>
+            <button id="btnLeft" onclick="onPress('S','F')" class="btn btnleft">L</button>
+            <button id="btnBuz" onclick="onPress('S','B')" class="btn btnbuz">B</button>
+            <button id="btnRight" onclick="onPress('S','R')" class="btn btnright">R</button><br>
+            <button id="btnDown" onclick="onPress('S','D')" class="btn btndown">D</button>
+        </div>
+        <div id="btnTruck">
+            <h3 style="font-size:30px"> To Stop Motion: </h3>
+            <button id="btnStop" onclick="onPress('S','P')" class="btn btnStop">Stop</button>
+        </div>
+    </div>
+</div>
+
+
+
+<!--h2>LED Control</h2> <table>
+         <tr>
+        <td><button id="toggleButton" onclick="onPress()" disabled>Toggle LED</button></td>
+        <td><canvas id="led" width="50" height="50"></canvas></td>
+    </tr>
+    
+</table> -->
